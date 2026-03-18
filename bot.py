@@ -28,7 +28,7 @@ from ai_summary import summarize
 from config import (
     DISCORD_TOKEN, CATEGORY_IDS, VAULT_PATH,
     HISTORY_FETCH_DELAY, ATTACHMENTS_SUBFOLDER,
-    GIT_PUSH_EVERY_N
+    GIT_PUSH_EVERY_N, ALLOWED_GUILD_IDS
 )
 import config
 config.validate()   # ← fail fast if any secret is missing
@@ -171,6 +171,17 @@ async def on_message(message: discord.Message):
         new_message_counter = 0
 
 
+# ── security ──────────────────────────────────────────────────────────────────
+
+@client.event
+async def on_guild_join(guild: discord.Guild):
+    """Leave immediately if bot is added to an unauthorized server."""
+    if guild.id not in ALLOWED_GUILD_IDS:
+        print(f"[security] ⚠️  Unauthorized server: '{guild.name}' (ID: {guild.id}). Leaving...")
+        await guild.leave()
+        print(f"[security] Left '{guild.name}' successfully.")
+
+
 # ── on_ready ──────────────────────────────────────────────────────────────────
 
 @client.event
@@ -178,6 +189,12 @@ async def on_ready():
     print(f"\n{'='*50}")
     print(f"  Bot online: {client.user}")
     print(f"{'='*50}\n")
+
+    # Security — leave any server that isn't in the allowed list
+    for guild in client.guilds:
+        if guild.id not in ALLOWED_GUILD_IDS:
+            print(f"[security] ⚠️  Unauthorized server: '{guild.name}'. Leaving...")
+            await guild.leave()
 
     # Setup
     Path(VAULT_PATH).mkdir(parents=True, exist_ok=True)
